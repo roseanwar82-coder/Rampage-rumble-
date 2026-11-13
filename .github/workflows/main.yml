@@ -1,0 +1,175 @@
+
+# ============================================================
+# RAMPAGE RUMBLE - AUTOMATIC GITHUB PAGES DEPLOYMENT
+# ============================================================
+#
+# Project: RAMPAGE RUMBLE
+# Game Type: 2D Anime Boxing / 2.5D Arcade Fighting
+# Platform: Android-friendly Web Game
+# Deployment: GitHub Pages
+#
+# PURPOSE:
+# This workflow automatically takes the compressed game ZIP,
+# extracts the game files on GitHub's server, checks that the
+# website entry file exists, and publishes the game online.
+#
+# You do NOT need to extract the ZIP manually on your phone.
+#
+# ============================================================
+
+name: RAMPAGE RUMBLE - Build and Deploy
+
+# ------------------------------------------------------------
+# 1. WHEN SHOULD THIS WORKFLOW RUN?
+# ------------------------------------------------------------
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - RAMPAGE_RUMBLE_Game_Project.zip
+      - .github/workflows/deploy.yml
+
+  # Allows you to manually start deployment.
+  workflow_dispatch:
+
+# ------------------------------------------------------------
+# 2. PERMISSIONS
+# ------------------------------------------------------------
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# ------------------------------------------------------------
+# 3. PREVENT MULTIPLE DEPLOYMENTS RUNNING TOGETHER
+# ------------------------------------------------------------
+
+concurrency:
+  group: rampage-rumble-pages
+  cancel-in-progress: true
+
+# ------------------------------------------------------------
+# 4. BUILD THE GAME WEBSITE
+# ------------------------------------------------------------
+
+jobs:
+
+  build:
+    name: Extract and Prepare Game
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # STEP 1: Download repository contents.
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v4
+
+      # STEP 2: Check that the game ZIP exists.
+      - name: Verify Game ZIP
+        run: |
+          echo "Checking RAMPAGE RUMBLE game archive..."
+
+          if [ ! -f "RAMPAGE_RUMBLE_Game_Project.zip" ]; then
+            echo "ERROR: Game ZIP not found!"
+            echo "Upload the game ZIP to the repository root."
+            exit 1
+          fi
+
+          echo "Game ZIP successfully located."
+
+      # STEP 3: Extract ZIP automatically.
+      - name: Extract Game Files
+        run: |
+          mkdir -p unpacked
+          mkdir -p site
+
+          echo "Extracting RAMPAGE RUMBLE..."
+
+          unzip -o RAMPAGE_RUMBLE_Game_Project.zip -d unpacked
+
+          echo "Extraction completed."
+
+      # STEP 4: Locate the actual website files.
+      - name: Prepare Website Files
+        run: |
+          if [ -f "unpacked/Rampage_Rumble/index.html" ]; then
+            cp -R unpacked/Rampage_Rumble/. site/
+
+          elif [ -f "unpacked/index.html" ]; then
+            cp -R unpacked/. site/
+
+          else
+            echo "ERROR: index.html was not found!"
+            echo "Extracted files:"
+            find unpacked -maxdepth 4 -type f
+            exit 1
+          fi
+
+          echo "Website files prepared."
+
+      # STEP 5: Validate the website.
+      - name: Validate Game Project
+        run: |
+          echo "Checking website entry file..."
+
+          test -f site/index.html
+
+          echo "Checking project documentation..."
+
+          if [ -f site/README.txt ] || [ -f site/README.md ]; then
+            echo "Documentation found."
+          else
+            echo "Documentation is missing."
+          fi
+
+          echo "Project validation completed."
+
+      # STEP 6: Display project structure.
+      - name: Display Website Files
+        run: |
+          echo "RAMPAGE RUMBLE website structure:"
+          find site -maxdepth 3 -type f
+
+      # STEP 7: Configure GitHub Pages.
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      # STEP 8: Upload website for deployment.
+      - name: Upload Website Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  # ----------------------------------------------------------
+  # 5. DEPLOY THE GAME ONLINE
+  # ----------------------------------------------------------
+
+  deploy:
+    name: Publish RAMPAGE RUMBLE
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+
+      # STEP 9: Publish website to GitHub Pages.
+      - name: Deploy Game
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # STEP 10: Display deployment information.
+      - name: Deployment Summary
+        run: |
+          echo "=================================="
+          echo "RAMPAGE RUMBLE DEPLOYMENT"
+          echo "=================================="
+          echo "Deployment completed successfully!"
+          echo "Your game is now published."
+          echo "=================================="
